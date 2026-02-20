@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JIE亲戚计算器</title>
+<style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui, sans-serif}
+    body{
+        background:linear-gradient(135deg,#1e1b4b,#312e81,#581c87);
+        min-height:100vh;display:flex;align-items:center;justify-content:center;
+        padding:20px;color:#fff
+    }
+    .card{
+        background:rgba(255,255,255,0.1);
+        backdrop-filter:blur(20px);
+        border:1px solid rgba(255,255,255,0.15);
+        border-radius:24px;width:100%;max-width:420px;
+        padding:32px;box-shadow:0 8px 30px rgba(0,0,0,0.3)
+    }
+    .title{text-align:center;margin-bottom:24px}
+    .title h1{
+        font-size:22px;
+        background:linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899);
+        -webkit-background-clip:text;background-clip:text;color:transparent
+    }
+    .title p{font-size:12px;color:#ccc;margin-top:6px}
+    .group{display:flex;flex-direction:column;gap:16px;margin-bottom:24px}
+    .label{font-size:13px;color:#eee;margin-bottom:6px}
+    select{
+        width:100%;padding:12px 14px;border-radius:12px;
+        background:rgba(255,255,255,0.15);
+        border:1px solid rgba(255,255,255,0.2);
+        color:#fff;outline:none;font-size:15px
+    }
+    .btn-bar{display:flex;gap:10px;margin-bottom:20px}
+    .btn-calc{
+        flex:1;padding:12px;border-radius:12px;border:none;
+        color:#fff;font-weight:500;
+        background:linear-gradient(90deg,#6366f1,#8b5cf6)
+    }
+    .btn-reset{
+        width:44px;height:44px;border-radius:12px;
+        background:rgba(255,255,255,0.1);
+        border:1px solid rgba(255,255,255,0.15);color:#fff
+    }
+    .result{
+        background:rgba(255,255,255,0.1);border-radius:14px;
+        padding:20px;text-align:center;min-height:70px;
+        font-size:18px;font-weight:60px;color:#fff
+    }
+    .foot{text-align:center;font-size:11px;color:#aaa;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="title">
+        <h1>杰同学全亲戚关系计算器</h1>
+        <p>堂/表/姻亲/祖辈/孙辈/全延伸关系</p>
+    </div>
+
+    <div class="group">
+        <div>
+            <div class="label">亲属大类</div>
+            <select id="s1" onchange="load2()"></select>
+        </div>
+        <div>
+            <div class="label">关系分支</div>
+            <select id="s2" onchange="load3()"></select>
+        </div>
+        <div>
+            <div class="label">具体称呼</div>
+            <select id="s3"></select>
+        </div>
+    </div>
+
+    <div class="btn-bar">
+        <button class="btn-calc" onclick="ok()">计算称呼</button>
+        <button class="btn-reset" onclick="reset()">↻</button>
+    </div>
+
+    <div id="result" class="result">请选择亲属关系</div>
+    <div class="foot">纯本地运行 · 全国通用 · 全覆盖</div>
+</div>
+
+<script>
+// ====================== 中国全覆盖亲戚库 ======================
+const data = {
+    // 1. 直系长辈
+    elder:{
+        father:[
+            {n:"爸爸的爸爸",c:"爷爷"},{n:"爸爸的妈妈",c:"奶奶"},
+            {n:"爸爸的哥哥",c:"大伯"},{n:"爸爸的弟弟",c:"叔叔"},
+            {n:"爸爸的姐姐",c:"大姑"},{n:"爸爸的妹妹",c:"小姑"}
+        ],
+        mother:[
+            {n:"妈妈的爸爸",c:"外公"},{n:"妈妈的妈妈",c:"外婆"},
+            {n:"妈妈的哥哥",c:"大舅"},{n:"妈妈的弟弟",c:"小舅"},
+            {n:"妈妈的姐姐",c:"大姨"},{n:"妈妈的妹妹",c:"小姨"}
+        ]
+    },
+    // 2. 堂/表长辈
+    elderTangBiao:{
+        tangElder:[
+            {n:"爸爸的堂兄",c:"堂伯"},{n:"爸爸的堂弟",c:"堂叔"},
+            {n:"爸爸的堂姐",c:"堂姑"},{n:"爸爸的堂妹",c:"堂姑"}
+        ],
+        biaoFather:[
+            {n:"爸爸的表兄",c:"表伯"},{n:"爸爸的表弟",c:"表叔"},
+            {n:"爸爸的表姐",c:"表姑"},{n:"爸爸的表妹",c:"表姑"}
+        ],
+        biaoMother:[
+            {n:"妈妈的表兄",c:"表舅"},{n:"妈妈的表弟",c:"表舅"},
+            {n:"妈妈的表姐",c:"表姨"},{n:"妈妈的表妹",c:"表姨"}
+        ]
+    },
+    // 3. 平辈（亲/堂/姑表/舅表/姨表）
+    peer:{
+        qin:[
+            {n:"亲哥哥",c:"哥哥"},{n:"亲弟弟",c:"弟弟"},
+            {n:"亲姐姐",c:"姐姐"},{n:"亲妹妹",c:"妹妹"}
+        ],
+        tang:[
+            {n:"叔伯的儿子",c:"堂哥/堂弟"},{n:"叔伯的女儿",c:"堂姐/堂妹"}
+        ],
+        guBiao:[
+            {n:"姑姑的儿子",c:"姑表哥/弟"},{n:"姑姑的女儿",c:"姑表姐/妹"}
+        ],
+        jiuBiao:[
+            {n:"舅舅的儿子",c:"舅表哥/弟"},{n:"舅舅的女儿",c:"舅表姐/妹"}
+        ],
+        yiBiao:[
+            {n:"姨妈的儿子",c:"姨表哥/弟"},{n:"姨妈的女儿",c:"姨表姐/妹"}
+        ]
+    },
+    // 4. 直系晚辈
+    junior:{
+        zhiWai:[
+            {n:"兄弟的儿子",c:"侄子"},{n:"兄弟的女儿",c:"侄女"},
+            {n:"姐妹的儿子",c:"外甥"},{n:"姐妹的女儿",c:"外甥女"}
+        ],
+        sun:[
+            {n:"儿子的孩子",c:"孙子/孙女"},{n:"女儿的孩子",c:"外孙/外孙女"}
+        ]
+    },
+    // 5. 表亲/堂亲 晚辈（你要的重点：表姐的儿子 全在这里）
+    juniorTangBiao:{
+        tangKid:[
+            {n:"堂哥的儿子",c:"堂侄"},{n:"堂哥的女儿",c:"堂侄女"},
+            {n:"堂姐的儿子",c:"堂外甥"},{n:"堂姐的女儿",c:"堂外甥女"}
+        ],
+        biaoKid:[
+            {n:"表哥的儿子",c:"表侄"},{n:"表哥的女儿",c:"表侄女"},
+            {n:"表姐的儿子",c:"表外甥"},{n:"表姐的女儿",c:"表外甥女"},
+            {n:"堂叔的儿子",c:"远房堂哥"},{n:"表舅的女儿",c:"远房表姐"}
+        ],
+        grandKid:[
+            {n:"堂侄的儿子",c:"堂曾孙"},{n:"表外甥的儿子",c:"表曾外孙"}
+        ]
+    },
+    // 6. 配偶亲属
+    spouse:{
+        husband:[
+            {n:"老公的爸爸",c:"公公"},{n:"老公的妈妈",c:"婆婆"},
+            {n:"老公的哥/弟",c:"大伯子/小叔子"}
+        ],
+        wife:[
+            {n:"老婆的爸爸",c:"岳父"},{n:"老婆的妈妈",c:"岳母"},
+            {n:"老婆的哥/弟",c:"大舅子/小舅子"}
+        ]
+    },
+    // 7. 姻亲
+    yin:{
+        other:[
+            {n:"兄弟老婆之间",c:"妯娌"},{n:"姐妹老公之间",c:"连襟"},
+            {n:"儿子的老婆",c:"儿媳"},{n:"女儿的老公",c:"女婿"}
+        ]
+    }
+};
+
+const s1 = document.getElementById('s1');
+const s2 = document.getElementById('s2');
+const s3 = document.getElementById('s3');
+const res = document.getElementById('result');
+
+function init(){
+    s1.innerHTML = `
+    <option value="">请选择</option>
+    <option value="elder">直系长辈</option>
+    <option value="elderTangBiao">堂/表长辈</option>
+    <option value="peer">平辈（亲/堂/表）</option>
+    <option value="junior">直系晚辈</option>
+    <option value="juniorTangBiao">堂/表晚辈</option>
+    <option value="spouse">配偶亲属</option>
+    <option value="yin">姻亲</option>`;
+    s2.innerHTML = '<option value="">请先选大类</option>';
+    s3.innerHTML = '<option value="">请先选分支</option>';
+}
+
+function load2(){
+    const t = s1.value;
+    s2.innerHTML = '<option value="">请选择分支</option>';
+    s3.innerHTML = '<option value="">请选择关系</option>';
+    res.textContent = "请选择亲属关系";
+    if(!t) return;
+    Object.keys(data[t]).forEach(k=>{
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = getLabel(t,k);
+        s2.appendChild(opt);
+    });
+}
+
+function load3(){
+    const t = s1.value, b = s2.value;
+    s3.innerHTML = '<option value="">请选择关系</option>';
+    if(!t||!b) return;
+    data[t][b].forEach(item=>{
+        const opt = document.createElement('option');
+        opt.value = item.c;
+        opt.textContent = item.n;
+        s3.appendChild(opt);
+    });
+}
+
+function getLabel(t,k){
+    const m = {
+        elder:{father:"爸爸系",mother:"妈妈系"},
+        elderTangBiao:{tangElder:"父系堂长辈",biaoFather:"父系表长辈",biaoMother:"母系表长辈"},
+        peer:{qin:"亲",tang:"堂亲",guBiao:"姑表",jiuBiao:"舅表",yiBiao:"姨表"},
+        junior:{zhiWai:"侄/外甥",sun:"孙辈"},
+        juniorTangBiao:{tangKid:"堂亲晚辈",biaoKid:"表亲晚辈",grandKid:"重孙辈"},
+        spouse:{husband:"丈夫家",wife:"妻子家"},
+        yin:{other:"姻亲/其他"}
+    };
+    return m[t][k];
+}
+
+function ok(){
+    const c = s3.value;
+    if(!c){ res.textContent="⚠️ 请完整选择"; return; }
+    res.textContent = "应该叫：" + c;
+}
+
+function reset(){ init(); res.textContent = "请选择亲属关系"; }
+
+init();
+</script>
+</body>
+</html>
